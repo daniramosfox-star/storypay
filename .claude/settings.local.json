@@ -7,7 +7,9 @@
       "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); node --version; npm --version)",
       "PowerShell(ls \"C:\\\\Users\\\\Denilson\\\\storypay\\\\node_modules\" | Where-Object { $_.Name -eq \"next\" })",
       "mcp__Claude_Preview__preview_start",
-      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); \\(Get-Command npm\\).Source)"
+      "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); \\(Get-Command npm\\).Source)",
+      "mcp__Claude_in_Chrome__list_connected_browsers",
+      "WebSearch"
     ]
   }
 }
