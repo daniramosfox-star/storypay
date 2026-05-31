@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "storypay",
+      "runtimeExecutable": "C:\\Users\\Denilson\\storypay\\dev.cmd",
+      "runtimeArgs": [],
+      "port": 3000,
+      "autoPort": false
+    }
+  ]
+}
