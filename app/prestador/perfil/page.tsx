@@ -31,8 +31,7 @@ export default function PerfilPage() {
   useEffect(() => {
     async function load() {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        const userId = session?.user?.id
+        const userId = sessionStorage.getItem('frepay_uid')
         if (!userId) return
 
         const { data: profile } = await supabase
@@ -75,8 +74,8 @@ export default function PerfilPage() {
   const save = async () => {
     setSaving(true)
     setError('')
-    const { data: { session } } = await supabase.auth.getSession()
-    const user = session?.user
+    const uid = sessionStorage.getItem('frepay_uid')
+    const user = uid ? { id: uid } : null
     if (!user) { setSaving(false); return }
 
     const { error: err } = await supabase.from('profiles').update({

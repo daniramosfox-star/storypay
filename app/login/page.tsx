@@ -56,6 +56,11 @@ function LoginContent() {
         if (profile?.tipo) tipo = profile.tipo
       } catch { /* usa default */ }
 
+      // Guarda userId em sessionStorage para o dashboard usar sem depender de getSession()
+      if (session.user?.id) {
+        sessionStorage.setItem('frepay_uid', session.user.id)
+      }
+
       const next = new URLSearchParams(window.location.search).get('next')
       router.push(next ?? `/${tipo}`)
       router.refresh()

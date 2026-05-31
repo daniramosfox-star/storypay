@@ -47,9 +47,18 @@ export default function PrestadorDashboard() {
 
   const carregarDados = useCallback(async () => {
     try {
-      // getSession lê do localStorage — funciona após setSession() no login
-      const { data: { session } } = await supabase.auth.getSession()
-      const userId = session?.user?.id
+      // 1. Tenta pegar userId do sessionStorage (guardado no login — instantâneo)
+      let userId = typeof window !== 'undefined' ? sessionStorage.getItem('frepay_uid') ?? undefined : undefined
+
+      // 2. Fallback: getSession com timeout de 3s
+      if (!userId) {
+        const sessionResult = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<{ data: { session: null } }>(r => setTimeout(() => r({ data: { session: null } }), 3000))
+        ])
+        userId = (sessionResult as { data: { session: { user?: { id: string } } | null } }).data.session?.user?.id
+      }
+
       if (!userId) { setPageLoading(false); return }
 
       const [{ data: prof }, { data: peds }, { data: lds }] = await Promise.all([
@@ -76,8 +85,7 @@ export default function PrestadorDashboard() {
     const novoStatus = !profile.is_online
 
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const userId = session?.user?.id ?? profile.id
+      const userId = sessionStorage.getItem('frepay_uid') ?? profile.id
       if (!userId) { setToggling(false); return }
 
       // Tenta pegar GPS se ficando online

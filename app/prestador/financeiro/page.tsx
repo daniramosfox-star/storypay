@@ -25,8 +25,7 @@ export default function FinanceiroPage() {
   useEffect(() => {
     async function load() {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        const userId = session?.user?.id
+        const userId = sessionStorage.getItem('frepay_uid')
         if (!userId) return
 
         const [{ data: profile }, { data: txns }] = await Promise.all([

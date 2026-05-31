@@ -1,6 +1,6 @@
 import { createBrowserClient } from '@supabase/ssr'
 
-// Remove BOM (U+FEFF = 65279) que o Windows adiciona nas env vars
+// Remove BOM (U+FEFF) usando escape explícito — evita problemas de encoding no arquivo
 function san(v: string | undefined): string {
   return (v ?? '').replace(/﻿/g, '').trim()
 }
@@ -13,6 +13,5 @@ export function createClient() {
     throw new Error('Supabase não configurado')
   }
 
-  // createBrowserClient armazena sessão em COOKIES — necessário para o middleware funcionar
   return createBrowserClient(url, key)
 }
