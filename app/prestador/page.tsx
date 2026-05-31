@@ -47,20 +47,14 @@ export default function PrestadorDashboard() {
 
   const carregarDados = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        // Sessão não reconhecida pelo browser client — tenta pela sessão local
-        const { data: { session } } = await supabase.auth.getSession()
-        if (!session) { setPageLoading(false); return }
-      }
-
-      const userId = (await supabase.auth.getUser()).data.user?.id
+      // getSession lê do localStorage — funciona após setSession() no login
+      const { data: { session } } = await supabase.auth.getSession()
+      const userId = session?.user?.id
       if (!userId) { setPageLoading(false); return }
 
       const [{ data: prof }, { data: peds }, { data: lds }] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', userId).single(),
-        supabase.from('pedidos').select('*').eq('status', 'aberto').order('created_at', { ascending: false }).limit(10),
+        supabase.from('pedidos').select('id, descricao, endereco, urgencia, created_at, cliente_nome, cliente_telefone').eq('status', 'aberto').order('created_at', { ascending: false }).limit(10),
         supabase.from('leads').select('*').eq('prestador_id', userId),
       ])
 

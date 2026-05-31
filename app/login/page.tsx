@@ -40,7 +40,15 @@ function LoginContent() {
         return
       }
 
-      // Cookies já foram setados pelo servidor — só redireciona
+      // Inicializa sessão no localStorage do browser (para createBrowserClient funcionar)
+      if (data.access_token && data.refresh_token) {
+        const supabase = createClient()
+        await supabase.auth.setSession({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+        })
+      }
+
       const next = new URLSearchParams(window.location.search).get('next')
       router.push(next ?? `/${data.tipo ?? 'prestador'}`)
       router.refresh()

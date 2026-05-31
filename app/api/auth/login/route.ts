@@ -65,7 +65,13 @@ export async function POST(req: NextRequest) {
       user: session.user,
     })
 
-    const response = NextResponse.json({ success: true, tipo })
+    // Retorna também os tokens para o browser poder chamar setSession()
+    const response = NextResponse.json({
+      success: true,
+      tipo,
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+    })
     response.cookies.set(cookieName, cookieValue, {
       httpOnly: true,
       secure: true,

@@ -115,6 +115,14 @@ function CadastroContent() {
         const loginData = await loginRes.json()
 
         if (loginRes.ok && loginData.success) {
+          // Inicializa sessão no localStorage para o browser client funcionar
+          if (loginData.access_token && loginData.refresh_token) {
+            const supabase = createClient()
+            await supabase.auth.setSession({
+              access_token: loginData.access_token,
+              refresh_token: loginData.refresh_token,
+            })
+          }
           router.push('/prestador')
           router.refresh()
         } else {
