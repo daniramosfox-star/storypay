@@ -77,25 +77,35 @@ export default function PrestadorDashboard() {
 
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      const userId = session?.user?.id
-      if (!userId) return
+      const userId = session?.user?.id ?? profile.id
+      if (!userId) { setToggling(false); return }
 
-      await supabase.from('profiles').update({
-        is_online: novoStatus,
-        last_seen: new Date().toISOString(),
-      }).eq('id', userId)
-
-      // Pega GPS ao ficar online
+      // Tenta pegar GPS se ficando online
+      let lat: number | undefined
+      let lon: number | undefined
       if (novoStatus && navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(async pos => {
-          await supabase.from('profiles').update({
-            latitude: pos.coords.latitude,
-            longitude: pos.coords.longitude,
-          }).eq('id', userId)
-        })
+        try {
+          const pos = await new Promise<GeolocationPosition>((res, rej) =>
+            navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000 })
+          )
+          lat = pos.coords.latitude
+          lon = pos.coords.longitude
+        } catch { /* GPS negado — ignora */ }
       }
 
-      setProfile(p => p ? { ...p, is_online: novoStatus } : p)
+      // Chama API server-side com service role (bypass RLS)
+      const res = await fetch('/api/prestador/toggle-online', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, isOnline: novoStatus, latitude: lat, longitude: lon }),
+      })
+
+      if (res.ok) {
+        setProfile(p => p ? { ...p, is_online: novoStatus } : p)
+      } else {
+        const err = await res.json()
+        console.error('toggle error:', err)
+      }
     } catch (e) {
       console.error('toggleOnline error:', e)
     } finally {
