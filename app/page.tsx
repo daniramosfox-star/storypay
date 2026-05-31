@@ -94,25 +94,10 @@ export default function Home() {
             </div>
 
             {/* Mapa real no hero */}
-            <div className="hidden lg:block">
-              <div className="relative">
-                {/* Frame estilo app */}
-                <div className="w-full h-[480px] rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-black/50">
-                  <MapaHero />
-                </div>
-                {/* Floating badge */}
-                <div className="absolute -left-6 top-8 bg-white rounded-2xl shadow-xl px-4 py-2.5 animate-float">
-                  <p className="text-xs text-gray-400">Profissional a</p>
-                  <p className="text-sm font-black text-gray-900">0.8 km de você 📍</p>
-                </div>
-                <div className="absolute -right-6 bottom-12 bg-green-500 rounded-2xl shadow-xl px-4 py-2.5 animate-float-delay">
-                  <p className="text-white text-xs font-bold flex items-center gap-1.5">
-                    <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                    Online agora
-                  </p>
-                </div>
+            <div className="hidden lg:flex items-center justify-center">
+              <div className="w-full h-[480px] rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-black/50">
+                <MapaHero />
               </div>
-              {/* Hack para remoção do código antigo sem quebrar */}
             </div>
           </div>
         </div>
