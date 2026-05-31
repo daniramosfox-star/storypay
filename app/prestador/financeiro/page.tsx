@@ -24,17 +24,23 @@ export default function FinanceiroPage() {
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const userId = session?.user?.id
+        if (!userId) return
 
-      const [{ data: profile }, { data: txns }] = await Promise.all([
-        supabase.from('profiles').select('saldo').eq('id', user.id).single(),
-        supabase.from('transacoes').select('*').eq('prestador_id', user.id).order('created_at', { ascending: false }).limit(20),
-      ])
+        const [{ data: profile }, { data: txns }] = await Promise.all([
+          supabase.from('profiles').select('saldo').eq('id', userId).single(),
+          supabase.from('transacoes').select('*').eq('prestador_id', userId).order('created_at', { ascending: false }).limit(20),
+        ])
 
-      if (profile) setSaldo(profile.saldo ?? 0)
-      if (txns) setTransacoes(txns)
-      setLoading(false)
+        if (profile) setSaldo(profile.saldo ?? 0)
+        if (txns) setTransacoes(txns)
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setLoading(false)
+      }
     }
     load()
   }, [])

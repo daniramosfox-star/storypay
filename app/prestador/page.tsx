@@ -46,19 +46,32 @@ export default function PrestadorDashboard() {
   const supabase = createClient()
 
   const carregarDados = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
 
-    const [{ data: prof }, { data: peds }, { data: lds }] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', user.id).single(),
-      supabase.from('pedidos').select('*').eq('status', 'aberto').order('created_at', { ascending: false }).limit(10),
-      supabase.from('leads').select('*').eq('prestador_id', user.id),
-    ])
+      if (!user) {
+        // Sessão não reconhecida pelo browser client — tenta pela sessão local
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) { setPageLoading(false); return }
+      }
 
-    if (prof) setProfile(prof as Profile)
-    if (peds) setPedidos(peds as Pedido[])
-    if (lds) setLeads(lds as Lead[])
-    setPageLoading(false)
+      const userId = (await supabase.auth.getUser()).data.user?.id
+      if (!userId) { setPageLoading(false); return }
+
+      const [{ data: prof }, { data: peds }, { data: lds }] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', userId).single(),
+        supabase.from('pedidos').select('*').eq('status', 'aberto').order('created_at', { ascending: false }).limit(10),
+        supabase.from('leads').select('*').eq('prestador_id', userId),
+      ])
+
+      if (prof) setProfile(prof as Profile)
+      if (peds) setPedidos(peds as Pedido[])
+      if (lds) setLeads(lds as Lead[])
+    } catch (e) {
+      console.error('carregarDados error:', e)
+    } finally {
+      setPageLoading(false)
+    }
   }, [])
 
   useEffect(() => { carregarDados() }, [carregarDados])

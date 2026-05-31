@@ -30,28 +30,34 @@ export default function PerfilPage() {
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const userId = session?.user?.id
+        if (!userId) return
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single()
 
-      if (profile) {
-        setForm({
-          nome: profile.nome ?? '',
-          telefone: profile.telefone ?? '',
-          especialidade: profile.especialidade ?? '',
-          categoria_id: profile.categoria_id ?? '',
-          cidade_id: profile.cidade_id ?? '',
-          bairros_atendidos: profile.bairros_atendidos ?? [],
-          bio: profile.bio ?? '',
-          anos_experiencia: profile.anos_experiencia?.toString() ?? '',
-        })
+        if (profile) {
+          setForm({
+            nome: profile.nome ?? '',
+            telefone: profile.telefone ?? '',
+            especialidade: profile.especialidade ?? '',
+            categoria_id: profile.categoria_id ?? '',
+            cidade_id: profile.cidade_id ?? '',
+            bairros_atendidos: profile.bairros_atendidos ?? [],
+            bio: profile.bio ?? '',
+            anos_experiencia: profile.anos_experiencia?.toString() ?? '',
+          })
+        }
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
     load()
   }, [])
