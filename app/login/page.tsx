@@ -107,24 +107,10 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Demo shortcuts */}
-        <div className="mt-6 bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4">
-          <p className="text-white/60 text-xs font-semibold uppercase tracking-wide mb-3 text-center">Acesso rápido (demo)</p>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { label: 'Prestador', href: '/prestador', color: 'from-orange-500 to-red-500' },
-              { label: 'Solicitar', href: '/pedir', color: 'from-green-500 to-emerald-600' },
-              { label: 'Admin', href: '/admin', color: 'from-gray-700 to-gray-900' },
-            ].map(d => (
-              <Link
-                key={d.href}
-                href={d.href}
-                className={`bg-gradient-to-r ${d.color} text-white text-xs font-bold py-2.5 rounded-xl text-center hover:scale-105 transition-all`}
-              >
-                {d.label}
-              </Link>
-            ))}
-          </div>
+        <div className="mt-6 text-center">
+          <Link href="/pedir" className="text-white/40 text-xs hover:text-white/70 transition-colors">
+            Solicitar um serviço sem cadastro →
+          </Link>
         </div>
       </div>
     </div>
