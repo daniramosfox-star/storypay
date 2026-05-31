@@ -2,8 +2,21 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { CATEGORIAS } from '@/lib/frepay/data'
 import SearchPrestadores from '@/components/frepay/SearchPrestadores'
+
+const MapaHero = dynamic(() => import('@/components/frepay/MapaHero'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full rounded-2xl bg-gray-800/50 flex items-center justify-center">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-[3px] border-orange-400 border-t-transparent rounded-full animate-spin" />
+        <p className="text-white/50 text-sm">Carregando mapa...</p>
+      </div>
+    </div>
+  ),
+})
 
 const depoimentos = [
   { nome: 'Carlos Mendes', cidade: 'Goiânia - GO', texto: 'Encontrei um técnico de ar condicionado em menos de 10 minutos. Chegou rápido e resolveu o problema no mesmo dia.', cat: '❄️', nota: 5 },
@@ -80,56 +93,26 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Phone mockup */}
-            <div className="hidden lg:flex justify-center">
-              <div className="relative animate-float">
-                <div className="w-64 h-[520px] bg-gray-900 rounded-[3rem] border-4 border-white/10 shadow-2xl overflow-hidden">
-                  <div className="h-10 bg-black flex items-center justify-center">
-                    <div className="w-20 h-4 bg-black rounded-full" />
-                  </div>
-                  {/* App header */}
-                  <div className="bg-gray-900 p-4 border-b border-white/10">
-                    <div className="flex items-center justify-between mb-1">
-                      <div>
-                        <p className="text-white/50 text-xs">Sua região</p>
-                        <p className="text-white font-bold text-sm">Setor Bueno, Goiânia</p>
-                      </div>
-                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                    </div>
-                  </div>
-                  {/* Prestadores */}
-                  <div className="p-3 flex flex-col gap-2">
-                    <p className="text-white/50 text-xs px-1">3 prestadores disponíveis</p>
-                    {[
-                      { nome: 'João Silva', cat: '❄️', dist: '0.8 km', rating: 4.9, online: true },
-                      { nome: 'Pedro Alves', cat: '❄️', dist: '1.2 km', rating: 4.8, online: true },
-                      { nome: 'Lucas Costa', cat: '❄️', dist: '2.1 km', rating: 4.7, online: true },
-                    ].map((p, i) => (
-                      <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-3 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-xl flex-shrink-0">
-                          {p.cat}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-white text-xs font-semibold">{p.nome}</p>
-                          <p className="text-white/40 text-xs">{p.dist} • {p.rating}⭐</p>
-                        </div>
-                        <div className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0" />
-                      </div>
-                    ))}
-                    <button className="mt-1 w-full bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold py-2.5 rounded-xl">
-                      Ver contato — WhatsApp
-                    </button>
-                  </div>
+            {/* Mapa real no hero */}
+            <div className="hidden lg:block">
+              <div className="relative">
+                {/* Frame estilo app */}
+                <div className="w-full h-[480px] rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-black/50">
+                  <MapaHero />
                 </div>
                 {/* Floating badge */}
-                <div className="absolute -right-8 top-24 bg-white rounded-2xl shadow-xl px-3 py-2 animate-float-delay">
-                  <p className="text-xs text-gray-500">Profissional a</p>
+                <div className="absolute -left-6 top-8 bg-white rounded-2xl shadow-xl px-4 py-2.5 animate-float">
+                  <p className="text-xs text-gray-400">Profissional a</p>
                   <p className="text-sm font-black text-gray-900">0.8 km de você 📍</p>
                 </div>
-                <div className="absolute -left-8 bottom-24 bg-green-500 rounded-2xl shadow-xl px-3 py-2 animate-float">
-                  <p className="text-white text-xs font-bold">✓ Online agora</p>
+                <div className="absolute -right-6 bottom-12 bg-green-500 rounded-2xl shadow-xl px-4 py-2.5 animate-float-delay">
+                  <p className="text-white text-xs font-bold flex items-center gap-1.5">
+                    <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                    Online agora
+                  </p>
                 </div>
               </div>
+              {/* Hack para remoção do código antigo sem quebrar */}
             </div>
           </div>
         </div>
