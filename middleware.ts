@@ -1,9 +1,11 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const san = (v: string | undefined) => (v ?? '').replace(/﻿/g, '').trim()
+
 export async function middleware(request: NextRequest) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const supabaseUrl = san(process.env.NEXT_PUBLIC_SUPABASE_URL)
+  const supabaseKey = san(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
   if (!supabaseUrl || supabaseUrl === 'your_supabase_url_here' || !supabaseKey) {
     return NextResponse.next()
@@ -73,6 +75,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // Exclui _next, assets estáticos E rotas /api/ (não precisam de auth no middleware)
+    '/((?!_next/static|_next/image|favicon.ico|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
