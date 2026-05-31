@@ -80,26 +80,33 @@ export default function PrestadorDashboard() {
     if (!profile) return
     setToggling(true)
     const novoStatus = !profile.is_online
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const userId = session?.user?.id
+      if (!userId) return
+
       await supabase.from('profiles').update({
         is_online: novoStatus,
         last_seen: new Date().toISOString(),
-        ...(novoStatus ? { latitude: null, longitude: null } : {}),
-      }).eq('id', user.id)
+      }).eq('id', userId)
 
-      // Tenta pegar geolocalização ao ficar online
+      // Pega GPS ao ficar online
       if (novoStatus && navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(async pos => {
           await supabase.from('profiles').update({
             latitude: pos.coords.latitude,
             longitude: pos.coords.longitude,
-          }).eq('id', user.id)
+          }).eq('id', userId)
         })
       }
+
+      setProfile(p => p ? { ...p, is_online: novoStatus } : p)
+    } catch (e) {
+      console.error('toggleOnline error:', e)
+    } finally {
+      setToggling(false)
     }
-    setProfile(p => p ? { ...p, is_online: novoStatus } : p)
-    setToggling(false)
   }
 
   const hoje = new Date().toISOString().split('T')[0]
@@ -109,7 +116,7 @@ export default function PrestadorDashboard() {
 
   const handleVerContato = async (pedido: Pedido) => {
     const lead = leadDoPedido(pedido.id)
-    if (lead?.contato_revelado) return // já revelado
+    if (lead?.contato_revelado) return
 
     setLoadingId(pedido.id)
     try {

@@ -75,8 +75,9 @@ export default function PerfilPage() {
   const save = async () => {
     setSaving(true)
     setError('')
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    const { data: { session } } = await supabase.auth.getSession()
+    const user = session?.user
+    if (!user) { setSaving(false); return }
 
     const { error: err } = await supabase.from('profiles').update({
       nome: form.nome,
