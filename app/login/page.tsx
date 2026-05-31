@@ -20,13 +20,17 @@ function LoginContent() {
     setError('')
 
     try {
-      // Chama API server-side — sem Supabase no browser (evita BOM em headers)
+      // Chama API server-side com timeout de 15s
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 15000)
+
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, senha }),
-        credentials: 'include', // garante que os cookies de sessão sejam recebidos
-      })
+        credentials: 'include',
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timer))
 
       const data = await res.json()
 

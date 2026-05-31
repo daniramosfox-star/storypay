@@ -1,76 +1,87 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const san = (v: string | undefined) => (v ?? '').replace(/﻿/g, '').trim()
+// Remove BOM usando código Unicode explícito
+const san = (v: string | undefined) =>
+  (v ?? '').replace(/﻿/g, '').replace(/​/g, '').trim()
 
 export async function POST(req: NextRequest) {
+  const { email, senha } = await req.json().catch(() => ({}))
+
+  if (!email || !senha) {
+    return NextResponse.json({ error: 'E-mail e senha obrigatórios' }, { status: 400 })
+  }
+
+  const supabaseUrl = san(process.env.NEXT_PUBLIC_SUPABASE_URL)
+  const anonKey    = san(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+
+  console.log('[LOGIN] url length:', supabaseUrl.length, '| key length:', anonKey.length)
+
+  if (!supabaseUrl || !anonKey) {
+    return NextResponse.json({ error: 'Servidor não configurado' }, { status: 500 })
+  }
+
+  // AbortController com timeout de 10 segundos
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 10000)
+
   try {
-    const { email, senha } = await req.json()
-    if (!email || !senha) {
-      return NextResponse.json({ error: 'E-mail e senha obrigatórios' }, { status: 400 })
-    }
-
-    const supabaseUrl = san(process.env.NEXT_PUBLIC_SUPABASE_URL)
-    const anonKey    = san(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-
-    if (!supabaseUrl || !anonKey) {
-      return NextResponse.json({ error: 'Configuração do servidor incompleta' }, { status: 500 })
-    }
-
-    // Login direto via REST — igual ao teste que funcionou
     const r = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': anonKey,
-      },
+      headers: { 'Content-Type': 'application/json', 'apikey': anonKey },
       body: JSON.stringify({ email, password: senha }),
+      signal: controller.signal,
     })
+    clearTimeout(timeout)
 
     const session = await r.json()
+    console.log('[LOGIN] status:', r.status, '| has token:', !!session.access_token)
 
     if (!r.ok || !session.access_token) {
       return NextResponse.json({ error: 'E-mail ou senha incorretos.' }, { status: 401 })
     }
 
-    // Busca tipo do perfil
+    // Busca tipo do perfil (com timeout próprio)
     let tipo = 'prestador'
     try {
-      const profileRes = await fetch(
+      const pc = new AbortController()
+      setTimeout(() => pc.abort(), 3000)
+      const pr = await fetch(
         `${supabaseUrl}/rest/v1/profiles?id=eq.${session.user.id}&select=tipo&limit=1`,
-        { headers: { 'apikey': anonKey, 'Authorization': `Bearer ${session.access_token}` } }
+        { headers: { 'apikey': anonKey, 'Authorization': `Bearer ${session.access_token}` }, signal: pc.signal }
       )
-      const profiles = await profileRes.json()
+      const profiles = await pr.json()
       if (profiles?.[0]?.tipo) tipo = profiles[0].tipo
     } catch { /* usa default */ }
 
-    // Monta response com cookies de sessão
-    const response = NextResponse.json({ success: true, tipo })
-
-    // Cookie principal da sessão Supabase (formato esperado pelo middleware @supabase/ssr)
+    // Seta cookie de sessão
+    const ref = supabaseUrl.split('//')[1]?.split('.')[0] ?? 'default'
+    const cookieName = `sb-${ref}-auth-token`
     const cookieValue = JSON.stringify({
       access_token: session.access_token,
       refresh_token: session.refresh_token,
-      expires_at: session.expires_at,
-      expires_in: session.expires_in,
-      token_type: session.token_type,
+      expires_at: session.expires_at ?? Math.floor(Date.now() / 1000) + 3600,
+      expires_in: session.expires_in ?? 3600,
+      token_type: 'bearer',
       user: session.user,
     })
 
-    const projectRef = supabaseUrl.split('//')[1].split('.')[0]
-    const cookieName = `sb-${projectRef}-auth-token`
-
+    const response = NextResponse.json({ success: true, tipo })
     response.cookies.set(cookieName, cookieValue, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true,
       sameSite: 'lax',
       maxAge: session.expires_in ?? 3600,
       path: '/',
     })
 
     return response
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Erro interno'
-    console.error('[LOGIN]', msg)
+  } catch (e: unknown) {
+    clearTimeout(timeout)
+    const msg = e instanceof Error ? e.message : 'Erro desconhecido'
+    console.error('[LOGIN ERROR]', msg)
+    if (msg.includes('abort') || msg.includes('timeout')) {
+      return NextResponse.json({ error: 'Tempo esgotado. Tente novamente.' }, { status: 504 })
+    }
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
