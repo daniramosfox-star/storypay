@@ -51,7 +51,7 @@ function CadastroContent() {
     senha: '',
     confirmSenha: '',
     telefone: '',
-    categoria: '',
+    especialidade: '', // campo livre: "o que você faz?"
     cidade: '',
     bio: '',
   })
@@ -72,7 +72,7 @@ function CadastroContent() {
 
   const goStep3 = () => {
     setTried(true)
-    if (form.categoria && form.cidade) { setStep(3); setTried(false) }
+    if (form.especialidade && form.cidade) { setStep(3); setTried(false) }
   }
 
   const handleSubmit = async () => {
@@ -90,7 +90,7 @@ function CadastroContent() {
           senha: form.senha,
           nome: form.nome,
           telefone: form.telefone,
-          categoria: form.categoria,
+          especialidade: form.especialidade,
           cidade: form.cidade,
           bio: form.bio,
         }),
@@ -217,13 +217,16 @@ function CadastroContent() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-700 block mb-1">Categoria de serviço</label>
-                  <select name="categoria" value={form.categoria} onChange={h}
-                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white ${tried && !form.categoria ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}>
-                    <option value="">Selecione sua especialidade...</option>
-                    {CATEGORIAS.map(c => <option key={c.id} value={c.id}>{c.emoji} {c.nome}</option>)}
-                  </select>
-                  {err(tried && !form.categoria, 'Selecione sua categoria')}
+                  <label className="text-sm font-medium text-gray-700 block mb-1">O que você faz? <span className="text-gray-400 font-normal">(descreva livremente)</span></label>
+                  <input
+                    name="especialidade"
+                    value={form.especialidade}
+                    onChange={h}
+                    placeholder="Ex: Designer gráfico, artes para redes sociais e logos"
+                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 ${tried && !form.especialidade ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Escreva como se estivesse apresentando seu serviço para um cliente</p>
+                  {err(tried && !form.especialidade, 'Descreva o serviço que você oferece')}
                 </div>
 
                 <div>

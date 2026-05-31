@@ -49,37 +49,36 @@ export default function Home() {
 
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white leading-tight mb-6">
                 Encontre o profissional{' '}
-                <span className="gradient-text">certo agora</span>
+                <span className="gradient-text">que você precisa</span>
               </h1>
 
               <p className="text-white/70 text-xl leading-relaxed mb-8">
-                Eletricista, encanador, técnico de ar condicionado e muito mais — disponíveis perto de você agora. Contato direto pelo WhatsApp.
+                Descreva qualquer serviço ou solução — eletricista, designer, fotógrafo, personal trainer e muito mais. Profissionais disponíveis perto de você agora, contato direto pelo WhatsApp.
               </p>
 
               {/* Request form quick */}
               <div className="bg-white rounded-2xl p-4 shadow-2xl shadow-black/30">
-                <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-3">Qual serviço você precisa?</p>
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  {CATEGORIAS.slice(0, 6).map(cat => (
-                    <button
-                      key={cat.id}
-                      onClick={() => setCatSelecionada(cat.id)}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm font-medium transition-all text-left ${
-                        catSelecionada === cat.id
-                          ? 'border-orange-500 bg-orange-50 text-orange-700'
-                          : 'border-gray-100 text-gray-700 hover:border-orange-300 hover:bg-orange-50/50'
-                      }`}
-                    >
-                      <span className="text-lg">{cat.emoji}</span>
-                      <span className="leading-tight">{cat.nome}</span>
+                <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2">O que você precisa?</p>
+                <input
+                  type="text"
+                  value={catSelecionada}
+                  onChange={e => setCatSelecionada(e.target.value)}
+                  placeholder="Ex: Designer para artes no Instagram..."
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 mb-3"
+                />
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {['Eletricista', 'Designer', 'Fotógrafo', 'Encanador', 'Personal'].map(s => (
+                    <button key={s} onClick={() => setCatSelecionada(s)}
+                      className="text-xs px-3 py-1 bg-gray-100 hover:bg-orange-100 hover:text-orange-700 text-gray-600 rounded-full transition-all">
+                      {s}
                     </button>
                   ))}
                 </div>
                 <Link
-                  href={catSelecionada ? `/pedir?categoria=${catSelecionada}` : '/pedir'}
+                  href={catSelecionada ? `/pedir?q=${encodeURIComponent(catSelecionada)}` : '/pedir'}
                   className="block w-full bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold py-3 rounded-xl text-center hover:scale-[1.01] transition-all text-sm"
                 >
-                  {catSelecionada ? `Encontrar ${CATEGORIAS.find(c => c.id === catSelecionada)?.nome} →` : 'Encontrar profissional →'}
+                  Encontrar profissional →
                 </Link>
               </div>
             </div>
@@ -139,26 +138,43 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Categorias */}
+      {/* Como é amplo */}
       <section className="py-20 bg-gray-50">
-        <div className="max-w-6xl mx-auto px-4">
+        <div className="max-w-5xl mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-black text-gray-900 mb-3">Todos os serviços</h2>
-            <p className="text-gray-500">Profissionais disponíveis na sua região agora</p>
+            <h2 className="text-3xl font-black text-gray-900 mb-3">Para qualquer serviço ou solução</h2>
+            <p className="text-gray-500 max-w-xl mx-auto">Não existe categoria limitada. Descreva o que precisa e os profissionais certos aparecem.</p>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {CATEGORIAS.map(cat => (
-              <Link
-                key={cat.id}
-                href={`/pedir?categoria=${cat.id}`}
-                className="bg-white rounded-2xl p-5 flex flex-col items-center gap-3 border border-gray-100 shadow-sm card-hover text-center group"
-              >
-                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${cat.cor} flex items-center justify-center text-3xl group-hover:scale-110 transition-transform`}>
-                  {cat.emoji}
-                </div>
-                <p className="font-semibold text-gray-800 text-sm leading-tight">{cat.nome}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {[
+              { emoji: '⚡', label: 'Eletricista' },
+              { emoji: '🔧', label: 'Encanador' },
+              { emoji: '❄️', label: 'Técnico de AC' },
+              { emoji: '🎨', label: 'Designer gráfico' },
+              { emoji: '📱', label: 'Artes para redes sociais' },
+              { emoji: '💻', label: 'Desenvolvedor web' },
+              { emoji: '📸', label: 'Fotógrafo' },
+              { emoji: '🎵', label: 'Produtor musical' },
+              { emoji: '🏋️', label: 'Personal trainer' },
+              { emoji: '🧹', label: 'Faxineira' },
+              { emoji: '🌿', label: 'Jardineiro' },
+              { emoji: '📦', label: 'Motorista de mudança' },
+              { emoji: '🖌️', label: 'Pintor' },
+              { emoji: '📊', label: 'Contador' },
+              { emoji: '🔩', label: 'Serralheiro' },
+              { emoji: '✍️', label: 'Redator / Copywriter' },
+            ].map((s, i) => (
+              <Link key={i} href="/pedir"
+                className="bg-white rounded-xl p-4 flex items-center gap-3 border border-gray-100 shadow-sm hover:border-orange-300 hover:bg-orange-50 transition-all group">
+                <span className="text-2xl group-hover:scale-110 transition-transform">{s.emoji}</span>
+                <span className="text-sm font-medium text-gray-700">{s.label}</span>
               </Link>
             ))}
+          </div>
+          <div className="text-center mt-6">
+            <Link href="/pedir" className="inline-flex items-center gap-2 text-orange-600 font-semibold text-sm hover:underline">
+              Não encontrou? Descreva qualquer serviço →
+            </Link>
           </div>
         </div>
       </section>

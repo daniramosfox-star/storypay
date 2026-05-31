@@ -1,14 +1,22 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useState, Suspense } from 'react'
 import Link from 'next/link'
-import { CATEGORIAS, formatWhatsApp } from '@/lib/frepay/data'
+import { formatWhatsApp } from '@/lib/frepay/data'
+
+const exemplos = [
+  'Designer gráfico para criar logo e identidade visual',
+  'Eletricista para trocar o quadro de luz',
+  'Encanador — torneira pingando',
+  'Técnico de ar condicionado para manutenção',
+  'Personal trainer para treinos online',
+  'Fotógrafo para ensaio de família',
+  'Desenvolvedor para criar um site simples',
+  'Motorista para mudança residencial',
+]
 
 function PedirContent() {
-  const params = useSearchParams()
   const [step, setStep] = useState(1)
-  const [categoria, setCategoria] = useState(params.get('categoria') || '')
   const [descricao, setDescricao] = useState('')
   const [endereco, setEndereco] = useState('')
   const [localizando, setLocalizando] = useState(false)
@@ -17,8 +25,6 @@ function PedirContent() {
   const [urgente, setUrgente] = useState(false)
   const [enviado, setEnviado] = useState(false)
   const [tried, setTried] = useState(false)
-
-  const cat = CATEGORIAS.find(c => c.id === categoria)
 
   const formatTel = (v: string) => {
     const d = v.replace(/\D/g, '').slice(0, 11)
@@ -41,7 +47,7 @@ function PedirContent() {
 
   const avancar = () => {
     setTried(true)
-    if (step === 1 && categoria && descricao) { setStep(2); setTried(false) }
+    if (step === 1 && descricao.length >= 10) { setStep(2); setTried(false) }
     if (step === 2 && endereco) { setStep(3); setTried(false) }
     if (step === 3 && nome && telefone.replace(/\D/g,'').length >= 10) setEnviado(true)
   }
@@ -53,7 +59,7 @@ function PedirContent() {
           <div className="text-6xl mb-4">✅</div>
           <h1 className="text-2xl font-black text-gray-900 mb-2">Pedido enviado!</h1>
           <p className="text-gray-500 text-sm mb-6">
-            Prestadores de <strong>{cat?.nome}</strong> disponíveis na sua área serão notificados agora. O profissional entrará em contato pelo WhatsApp.
+            Prestadores disponíveis na sua área que atendem o que você precisa serão notificados agora. O profissional entrará em contato pelo WhatsApp.
           </p>
           <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6 flex items-center gap-3">
             <span className="text-3xl">📱</span>
@@ -92,41 +98,39 @@ function PedirContent() {
           ))}
         </div>
 
-        {/* Step 1 — Categoria + Descrição */}
+        {/* Step 1 — O que você precisa? */}
         {step === 1 && (
           <div className="flex flex-col gap-5">
             <div>
-              <h1 className="text-2xl font-black text-gray-900 mb-1">Qual serviço você precisa?</h1>
-              <p className="text-gray-400 text-sm">Selecione a categoria e descreva o problema</p>
+              <h1 className="text-2xl font-black text-gray-900 mb-1">O que você precisa?</h1>
+              <p className="text-gray-400 text-sm">Descreva livremente — qualquer serviço ou solução</p>
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-2">Categoria</label>
-              <div className="grid grid-cols-2 gap-2">
-                {CATEGORIAS.map(c => (
-                  <button key={c.id} onClick={() => setCategoria(c.id)}
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm font-medium transition-all text-left ${
-                      categoria === c.id ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-700 bg-white hover:border-orange-300'
-                    }`}>
-                    <span className="text-xl flex-shrink-0">{c.emoji}</span>
-                    <span className="leading-tight">{c.nome}</span>
+              <textarea
+                value={descricao}
+                onChange={e => setDescricao(e.target.value)}
+                rows={4}
+                placeholder="Ex: Preciso de um designer para criar artes para o meu Instagram..."
+                className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none bg-white ${tried && descricao.length < 10 ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
+              />
+              <div className="flex justify-between items-center mt-1">
+                {err(tried && descricao.length < 10, 'Descreva com mais detalhes (mín. 10 caracteres)')}
+                <p className="text-xs text-gray-300 ml-auto">{descricao.length} chars</p>
+              </div>
+            </div>
+
+            {/* Exemplos clicáveis */}
+            <div>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Exemplos — clique para usar</p>
+              <div className="flex flex-wrap gap-2">
+                {exemplos.map((ex, i) => (
+                  <button key={i} onClick={() => setDescricao(ex)}
+                    className="text-xs px-3 py-1.5 bg-white border border-gray-200 rounded-full text-gray-600 hover:border-orange-400 hover:text-orange-700 hover:bg-orange-50 transition-all text-left">
+                    {ex.slice(0, 40)}{ex.length > 40 ? '...' : ''}
                   </button>
                 ))}
               </div>
-              {err(tried && !categoria, 'Selecione a categoria do serviço')}
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Descreva o problema</label>
-              <textarea
-                value={descricao} onChange={e => setDescricao(e.target.value)}
-                rows={4}
-                placeholder={cat
-                  ? `Ex: ${cat.id === 'ar-condicionado' ? 'Meu ar condicionado não está gelando, preciso de manutenção urgente.' : cat.id === 'eletrica' ? 'Preciso trocar o quadro de luz e instalar 2 tomadas novas.' : 'Descreva o que precisa...'}`
-                  : 'Descreva o que você precisa com o máximo de detalhes possível...'}
-                className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none bg-white ${tried && !descricao ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
-              />
-              {err(tried && !descricao, 'Descreva o problema para os prestadores entenderem o que precisa')}
             </div>
 
             <label className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-xl p-3 cursor-pointer">
@@ -151,11 +155,8 @@ function PedirContent() {
               <p className="text-gray-400 text-sm">Para encontrar prestadores perto de você</p>
             </div>
 
-            <button
-              onClick={usarGeolocalizacao}
-              disabled={localizando}
-              className="flex items-center gap-3 bg-blue-50 border-2 border-blue-200 rounded-xl p-4 text-left hover:border-blue-400 transition-all disabled:opacity-50"
-            >
+            <button onClick={usarGeolocalizacao} disabled={localizando}
+              className="flex items-center gap-3 bg-blue-50 border-2 border-blue-200 rounded-xl p-4 text-left hover:border-blue-400 transition-all disabled:opacity-50">
               <span className="text-2xl">{localizando ? '⏳' : '📍'}</span>
               <div>
                 <p className="font-bold text-blue-800 text-sm">{localizando ? 'Obtendo localização...' : 'Usar minha localização atual'}</p>
@@ -171,12 +172,10 @@ function PedirContent() {
 
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Digite seu endereço</label>
-              <input
-                value={endereco} onChange={e => setEndereco(e.target.value)}
+              <input value={endereco} onChange={e => setEndereco(e.target.value)}
                 placeholder="Ex: Rua dos Pinheiros, 120 — Setor Bueno, Goiânia"
-                className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white ${tried && !endereco ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
-              />
-              {err(tried && !endereco, 'Informe seu endereço para encontrarmos profissionais próximos')}
+                className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white ${tried && !endereco ? 'border-red-400 bg-red-50' : 'border-gray-200'}`} />
+              {err(tried && !endereco, 'Informe seu endereço')}
             </div>
 
             <div className="flex gap-3">
@@ -196,61 +195,40 @@ function PedirContent() {
 
             <div>
               <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">Seu nome</label>
-              <input
-                value={nome} onChange={e => setNome(e.target.value)}
-                placeholder="Como você se chama?"
-                className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white ${tried && !nome ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
-              />
+              <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Como você se chama?"
+                className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white ${tried && !nome ? 'border-red-400 bg-red-50' : 'border-gray-200'}`} />
               {err(tried && !nome, 'Informe seu nome')}
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-                WhatsApp / Telefone
-              </label>
-              <input
-                value={telefone}
-                onChange={e => setTelefone(formatTel(e.target.value))}
-                placeholder="(62) 99999-9999"
-                inputMode="tel"
-                className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white ${tried && telefone.replace(/\D/g,'').length < 10 ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
-              />
-              {err(tried && telefone.replace(/\D/g,'').length < 10, 'Informe um número de WhatsApp válido')}
-
-              {/* Botão WhatsApp preview */}
+              <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">WhatsApp / Telefone</label>
+              <input value={telefone} onChange={e => setTelefone(formatTel(e.target.value))}
+                placeholder="(62) 99999-9999" inputMode="tel"
+                className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white ${tried && telefone.replace(/\D/g,'').length < 10 ? 'border-red-400 bg-red-50' : 'border-gray-200'}`} />
+              {err(tried && telefone.replace(/\D/g,'').length < 10, 'Informe um número válido')}
               {telefone.replace(/\D/g,'').length >= 10 && (
-                <a
-                  href={formatWhatsApp(telefone)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-2 flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-all w-fit"
-                >
-                  <span className="text-lg">💬</span>
-                  Abrir WhatsApp — {telefone}
+                <a href={formatWhatsApp(telefone)} target="_blank" rel="noreferrer"
+                  className="mt-2 flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-all w-fit">
+                  <span className="text-lg">💬</span> Abrir WhatsApp — {telefone}
                 </a>
               )}
             </div>
 
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-xs text-gray-500 leading-relaxed">
-              🔒 Seu número fica protegido. Só é revelado para o prestador que pagar pelo contato. Não enviamos spam.
+            {/* Resumo */}
+            <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 text-xs flex flex-col gap-2">
+              <div className="flex gap-2">
+                <span className="text-gray-400 flex-shrink-0">Serviço:</span>
+                <span className="text-gray-800 font-medium">{descricao.slice(0, 80)}{descricao.length > 80 ? '...' : ''}</span>
+              </div>
+              <div className="flex gap-2">
+                <span className="text-gray-400 flex-shrink-0">Local:</span>
+                <span className="text-gray-800">{endereco}</span>
+              </div>
+              {urgente && <span className="font-bold text-red-600">🚨 Urgente</span>}
             </div>
 
-            {/* Resumo */}
-            <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 flex flex-col gap-2 text-xs">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Serviço</span>
-                <span className="font-semibold text-gray-800">{cat?.emoji} {cat?.nome}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Endereço</span>
-                <span className="font-semibold text-gray-800 text-right max-w-[60%]">{endereco}</span>
-              </div>
-              {urgente && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Prioridade</span>
-                  <span className="font-bold text-red-600">🚨 Urgente</span>
-                </div>
-              )}
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs text-gray-500">
+              🔒 Seu número fica protegido. Só é revelado para o prestador após pagamento do lead.
             </div>
 
             <div className="flex gap-3">

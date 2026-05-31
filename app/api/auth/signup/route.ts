@@ -8,7 +8,7 @@ function sanitize(v: string | undefined) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, senha, nome, telefone, categoria, cidade, bio } = await req.json()
+    const { email, senha, nome, telefone, especialidade, cidade, bio } = await req.json()
 
     if (!email || !senha || !nome) {
       return NextResponse.json({ error: 'Campos obrigatórios faltando' }, { status: 400 })
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       tipo: 'prestador',
       nome,
       telefone: telefone || null,
-      categoria_id: categoria || null,
+      especialidade: especialidade || null,
       cidade_id: cidade || null,
       bio: bio || null,
       is_online: false,
