@@ -80,36 +80,43 @@ function CadastroContent() {
     setLoading(true)
     setError('')
 
-    const supabase = createClient()
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email: form.email,
-      password: form.senha,
-      options: { data: { nome: form.nome, tipo: 'prestador' } },
-    })
+    try {
+      const supabase = createClient()
 
-    if (signUpError) {
-      setError(signUpError.message)
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email: form.email,
+        password: form.senha,
+        options: { data: { nome: form.nome, tipo: 'prestador' } },
+      })
+
+      if (signUpError) {
+        setError(signUpError.message)
+        setLoading(false)
+        return
+      }
+
+      if (data.user) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          tipo: 'prestador',
+          nome: form.nome,
+          telefone: form.telefone || null,
+          categoria_id: form.categoria || null,
+          cidade_id: form.cidade || null,
+          bio: form.bio || null,
+          is_online: false,
+          saldo: 0,
+        } as any)
+      }
+
+      router.push('/prestador')
+      router.refresh()
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Erro ao criar conta'
+      setError(msg)
       setLoading(false)
-      return
     }
-
-    if (data.user) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await supabase.from('profiles').upsert({
-        id: data.user.id,
-        tipo: 'prestador',
-        nome: form.nome,
-        telefone: form.telefone,
-        categoria_id: form.categoria,
-        cidade_id: form.cidade,
-        bio: form.bio,
-        is_online: false,
-        saldo: 0,
-      } as any)
-    }
-
-    router.push('/prestador')
-    router.refresh()
   }
 
   return (
