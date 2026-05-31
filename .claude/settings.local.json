@@ -9,7 +9,9 @@
       "mcp__Claude_Preview__preview_start",
       "PowerShell($env:PATH = [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"PATH\", \"User\"\\); \\(Get-Command npm\\).Source)",
       "mcp__Claude_in_Chrome__list_connected_browsers",
-      "WebSearch"
+      "WebSearch",
+      "WebFetch(domain:docs.infinitepay.io)",
+      "WebFetch(domain:www.infinitepay.io)"
     ]
   }
 }

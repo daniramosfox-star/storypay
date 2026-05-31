@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { criarLinkPagamento } from '@/lib/infinitepay/client'
+import { gerarUrlPagamento } from '@/lib/infinitepay/client'
 import { createClient } from '@/lib/supabase/server'
 import { PRECO_LEAD } from '@/lib/frepay/data'
 
@@ -83,19 +83,19 @@ export async function POST(req: NextRequest) {
       contato_revelado: false,
     }, { onConflict: 'pedido_id,prestador_id' })
 
-    const link = await criarLinkPagamento({
+    // Gera URL direto — sem POST API, funciona com query params
+    const paymentUrl = gerarUrlPagamento({
       orderNsu,
       valor: PRECO_LEAD,
       descricao: 'Lead Frepay — contato de cliente',
       webhookUrl: `${appUrl}/api/lead/webhook`,
-      returnUrl: `${appUrl}/prestador/pedidos?leadId=${leadId}`,
+      redirectUrl: `${appUrl}/prestador/pedidos?leadId=${leadId}`,
     })
 
     return NextResponse.json({
       gratis: false,
       leadId,
-      paymentUrl: link.url,
-      invoiceSlug: link.invoice_slug,
+      paymentUrl,
       valor: PRECO_LEAD,
     })
   } catch (err) {

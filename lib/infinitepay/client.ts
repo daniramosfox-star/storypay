@@ -1,8 +1,8 @@
 // InfinitePay Checkout Integrado
-// Docs: https://app.infinitepay.io/external-checkout#documentacao
-// Sem OAuth — só precisa do handle (InfiniteTag sem o $)
+// Gera URL de pagamento diretamente — sem POST, sem OAuth
+// Formato: https://checkout.infinitepay.io/[handle]?items=[...]&order_nsu=...
 
-const CHECKOUT_API = 'https://api.checkout.infinitepay.io'
+const CHECKOUT_BASE = 'https://checkout.infinitepay.io'
 
 function getHandle() {
   const handle = process.env.INFINITEPAY_HANDLE
@@ -11,49 +11,41 @@ function getHandle() {
 }
 
 // ----------------------------------------------------------------
-// Criar link de pagamento
+// Gerar URL de pagamento (método direto — sem chamada de API)
 // ----------------------------------------------------------------
-export async function criarLinkPagamento(params: {
-  orderNsu: string       // ID único do nosso sistema (lead_id)
+export function gerarUrlPagamento(params: {
+  orderNsu: string
   valor: number          // em reais (ex: 1.99)
   descricao: string
-  webhookUrl: string     // chamado automaticamente quando pago
-  returnUrl: string      // redireciona o comprador após pagar
-}) {
+  redirectUrl: string    // redireciona após pagar
+  webhookUrl?: string    // notificação quando pago
+}): string {
   const handle = getHandle()
 
-  const res = await fetch(`${CHECKOUT_API}/links`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      handle,
-      order_nsu: params.orderNsu,
-      redirect_url: params.returnUrl,
-      webhook_url: params.webhookUrl,
-      items: [
-        {
-          quantity: 1,
-          price: Math.round(params.valor * 100), // centavos
-          description: params.descricao,
-        },
-      ],
-    }),
-  })
+  const items = JSON.stringify([{
+    quantity: 1,
+    price: Math.round(params.valor * 100), // centavos
+    description: params.descricao,
+  }])
 
-  const data = await res.json()
-  if (!res.ok) {
-    throw new Error(data.message ?? data.error ?? `InfinitePay error ${res.status}`)
+  const url = new URL(`${CHECKOUT_BASE}/${handle}`)
+  url.searchParams.set('items', items)
+  url.searchParams.set('order_nsu', params.orderNsu)
+  url.searchParams.set('redirect_url', params.redirectUrl)
+  if (params.webhookUrl) {
+    url.searchParams.set('webhook_url', params.webhookUrl)
   }
-  return data as InfinitePayLink
+
+  return url.toString()
 }
 
 // ----------------------------------------------------------------
-// Verificar status de um pagamento
+// Verificar status de um pagamento via API
 // ----------------------------------------------------------------
-export async function verificarPagamento(orderNsu: string) {
+export async function verificarPagamento(orderNsu: string): Promise<InfinitePayStatus> {
   const handle = getHandle()
 
-  const res = await fetch(`${CHECKOUT_API}/payment_check`, {
+  const res = await fetch('https://api.checkout.infinitepay.io/payment_check', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ handle, order_nsu: orderNsu }),
@@ -67,22 +59,14 @@ export async function verificarPagamento(orderNsu: string) {
 // ----------------------------------------------------------------
 // Types
 // ----------------------------------------------------------------
-export type InfinitePayLink = {
-  url: string
-  invoice_slug: string
-  order_nsu: string
-  amount: number
-  expires_at?: string
-}
-
 export type InfinitePayStatus = {
-  invoice_slug?: string
   order_nsu: string
-  amount: number
+  amount?: number
   paid_amount?: number
   status: 'pending' | 'paid' | 'expired' | 'cancelled'
   capture_method?: string
   paid_at?: string
+  invoice_slug?: string
 }
 
 export type InfinitePayWebhookPayload = {
@@ -90,7 +74,7 @@ export type InfinitePayWebhookPayload = {
   order_nsu: string
   amount: number
   paid_amount: number
-  capture_method: string
+  capture_method: string   // 'pix' | 'credit' | 'debit'
   transaction_nsu: string
   receipt_url?: string
   items: Array<{ quantity: number; price: number; description: string }>
