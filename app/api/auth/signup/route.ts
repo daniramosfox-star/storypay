@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
+// Remove BOM (U+FEFF = 65279) e espaços que o Windows adiciona nas env vars
+function sanitize(v: string | undefined) {
+  return (v ?? '').replace(/^﻿/, '').replace(/﻿/g, '').trim()
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { email, senha, nome, telefone, categoria, cidade, bio } = await req.json()
@@ -9,12 +14,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Campos obrigatórios faltando' }, { status: 400 })
     }
 
-    // Service role — roda no servidor, sem problema de headers
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    )
+    // Sanitiza vars — remove BOM e espaços antes de usar nos headers
+    const supabaseUrl = sanitize(process.env.NEXT_PUBLIC_SUPABASE_URL)
+    const serviceKey  = sanitize(process.env.SUPABASE_SERVICE_ROLE_KEY)
+
+    if (!supabaseUrl || !serviceKey) {
+      return NextResponse.json({ error: 'Configuração do servidor incompleta' }, { status: 500 })
+    }
+
+    // Service role — roda no servidor
+    const supabase = createClient(supabaseUrl, serviceKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    })
 
     // 1. Cria o usuário
     const { data, error: signUpError } = await supabase.auth.admin.createUser({
