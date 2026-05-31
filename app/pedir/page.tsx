@@ -3,6 +3,7 @@
 import { useState, Suspense } from 'react'
 import Link from 'next/link'
 import { formatWhatsApp } from '@/lib/frepay/data'
+import SearchPrestadores from '@/components/frepay/SearchPrestadores'
 
 const exemplos = [
   'Designer gráfico para criar logo e identidade visual',
@@ -104,6 +105,17 @@ function PedirContent() {
             <div>
               <h1 className="text-2xl font-black text-gray-900 mb-1">O que você precisa?</h1>
               <p className="text-gray-400 text-sm">Descreva livremente — qualquer serviço ou solução</p>
+            </div>
+
+            {/* Busca rápida de prestador por nome */}
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Buscar prestador por nome</p>
+              <SearchPrestadores placeholder="Ex: João Silva, eletricista..." />
+              <div className="flex items-center gap-2 my-3">
+                <div className="flex-1 h-px bg-gray-100" />
+                <span className="text-xs text-gray-400">ou descreva o que precisa abaixo</span>
+                <div className="flex-1 h-px bg-gray-100" />
+              </div>
             </div>
 
             <div>

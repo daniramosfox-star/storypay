@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { CATEGORIAS } from '@/lib/frepay/data'
+import SearchPrestadores from '@/components/frepay/SearchPrestadores'
 
 const depoimentos = [
   { nome: 'Carlos Mendes', cidade: 'Goiânia - GO', texto: 'Encontrei um técnico de ar condicionado em menos de 10 minutos. Chegou rápido e resolveu o problema no mesmo dia.', cat: '❄️', nota: 5 },
@@ -56,17 +57,16 @@ export default function Home() {
                 Descreva qualquer serviço ou solução — eletricista, designer, fotógrafo, personal trainer e muito mais. Profissionais disponíveis perto de você agora, contato direto pelo WhatsApp.
               </p>
 
-              {/* Request form quick */}
+              {/* Search com autocomplete */}
               <div className="bg-white rounded-2xl p-4 shadow-2xl shadow-black/30">
-                <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2">O que você precisa?</p>
-                <input
-                  type="text"
-                  value={catSelecionada}
-                  onChange={e => setCatSelecionada(e.target.value)}
-                  placeholder="Ex: Designer para artes no Instagram..."
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 mb-3"
+                <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-3">
+                  Encontre um profissional agora
+                </p>
+                <SearchPrestadores
+                  placeholder="Digite um serviço ou nome do profissional..."
+                  className="mb-3"
                 />
-                <div className="flex flex-wrap gap-1.5 mb-3">
+                <div className="flex flex-wrap gap-1.5">
                   {['Eletricista', 'Designer', 'Fotógrafo', 'Encanador', 'Personal'].map(s => (
                     <button key={s} onClick={() => setCatSelecionada(s)}
                       className="text-xs px-3 py-1 bg-gray-100 hover:bg-orange-100 hover:text-orange-700 text-gray-600 rounded-full transition-all">
@@ -74,12 +74,6 @@ export default function Home() {
                     </button>
                   ))}
                 </div>
-                <Link
-                  href={catSelecionada ? `/pedir?q=${encodeURIComponent(catSelecionada)}` : '/pedir'}
-                  className="block w-full bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold py-3 rounded-xl text-center hover:scale-[1.01] transition-all text-sm"
-                >
-                  Encontrar profissional →
-                </Link>
               </div>
             </div>
 
