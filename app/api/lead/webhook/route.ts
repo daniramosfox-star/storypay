@@ -1,73 +1,85 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { consultarStatus } from '@/lib/picpay/client'
+import { verificarPagamento, type InfinitePayWebhookPayload } from '@/lib/infinitepay/client'
 import { createClient } from '@/lib/supabase/server'
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
+    const payload: InfinitePayWebhookPayload = await req.json()
+    console.log('[WEBHOOK INFINITEPAY]', payload.order_nsu, payload.capture_method)
 
-    // PicPay envia: { referenceId, authorizationId, status }
-    const referenceId: string = body.referenceId
-    if (!referenceId?.startsWith('frepay-lead-')) {
-      return NextResponse.json({ ok: true }) // ignora cobranças de outros sistemas
+    // Só processa pedidos do Frepay
+    const orderNsu = payload.order_nsu
+    if (!orderNsu?.startsWith('frepay-')) {
+      return NextResponse.json({ ok: true })
     }
 
-    const leadId = referenceId.replace('frepay-lead-', '')
+    const leadId = orderNsu.replace('frepay-', '')
 
-    // Confirma status diretamente na API (não confia só no webhook)
-    const status = await consultarStatus(referenceId)
-
-    if (status.status !== 'paid' && status.status !== 'completed') {
-      return NextResponse.json({ ok: true }) // ainda não pago
+    // Confirma pagamento diretamente na API (não confia só no webhook)
+    let statusConfirmado
+    try {
+      statusConfirmado = await verificarPagamento(orderNsu)
+      if (statusConfirmado.status !== 'paid') {
+        return NextResponse.json({ ok: true }) // ainda não pago
+      }
+    } catch {
+      // Se falhar a verificação, usa o payload do webhook mesmo
+      if (!payload.paid_amount || payload.paid_amount < payload.amount) {
+        return NextResponse.json({ ok: true })
+      }
     }
 
     const supabase = await createClient()
 
-    // Busca o lead
+    // Evita processar duas vezes
     const { data: lead } = await supabase
       .from('leads')
-      .select('*, pedidos(cliente_telefone, cliente_nome, categoria_id)')
+      .select('pago, prestador_id, pedido_id')
       .eq('id', leadId)
       .single()
 
     if (!lead || lead.pago) {
-      return NextResponse.json({ ok: true }) // já processado
+      return NextResponse.json({ ok: true })
     }
 
     // Marca como pago e revela contato
-    await supabase
-      .from('leads')
-      .update({
-        pago: true,
-        contato_revelado: true,
-        payment_id: status.authorizationId,
-      })
-      .eq('id', leadId)
+    await supabase.from('leads').update({
+      pago: true,
+      contato_revelado: true,
+      payment_id: payload.invoice_slug,
+    }).eq('id', leadId)
 
-    // Registra transação
+    // Busca info da categoria para a transação
+    const { data: pedido } = await supabase
+      .from('pedidos')
+      .select('categoria_id, cliente_telefone, cliente_nome')
+      .eq('id', lead.pedido_id)
+      .single()
+
+    // Registra transação financeira
     await supabase.from('transacoes').insert({
       prestador_id: lead.prestador_id,
       tipo: 'compra_lead',
-      valor: -lead.valor,
-      descricao: `Lead pago via PicPay — ${lead.pedidos?.categoria_id}`,
+      valor: -(payload.paid_amount / 100), // converte centavos
+      descricao: `Lead pago via InfinitePay (${payload.capture_method ?? 'pix'}) — ${pedido?.categoria_id ?? ''}`,
       lead_id: leadId,
     })
 
-    // Notifica prestador via Supabase Realtime (broadcast)
+    // Notifica prestador em tempo real via Supabase Realtime
     await supabase.channel(`prestador-${lead.prestador_id}`).send({
       type: 'broadcast',
       event: 'lead_pago',
       payload: {
         leadId,
-        telefone: lead.pedidos?.cliente_telefone,
-        nome: lead.pedidos?.cliente_nome,
+        telefone: pedido?.cliente_telefone,
+        nome: pedido?.cliente_nome,
       },
     })
 
-    console.log(`[WEBHOOK] Lead ${leadId} pago — prestador ${lead.prestador_id}`)
+    console.log(`[WEBHOOK] Lead ${leadId} confirmado via ${payload.capture_method}`)
     return NextResponse.json({ ok: true })
   } catch (err) {
-    console.error('[WEBHOOK PICPAY]', err)
+    console.error('[WEBHOOK INFINITEPAY]', err)
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }

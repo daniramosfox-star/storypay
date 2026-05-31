@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { PRECO_LEAD, formatWhatsApp } from '@/lib/frepay/data'
 
 const pedidosProximos = [
@@ -12,8 +12,6 @@ const pedidosProximos = [
 type PayState = {
   leadId: string
   paymentUrl: string
-  qrcodeBase64?: string
-  qrcodeContent?: string
   pedidoId: string
 }
 
@@ -31,7 +29,6 @@ export default function PrestadorDashboard() {
   const [payState, setPayState] = useState<PayState | null>(null)
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [polling, setPolling] = useState(false)
-  const [copied, setCopied] = useState(false)
 
   const toggleOnline = () => {
     setToggling(true)
@@ -86,8 +83,6 @@ export default function PrestadorDashboard() {
         setPayState({
           leadId: data.leadId,
           paymentUrl: data.paymentUrl,
-          qrcodeBase64: data.qrcodeBase64,
-          qrcodeContent: data.qrcodeContent,
           pedidoId,
         })
         pollStatus(data.leadId, pedidoId)
@@ -96,14 +91,6 @@ export default function PrestadorDashboard() {
       alert('Erro de conexão. Tente novamente.')
     } finally {
       setLoadingId(null)
-    }
-  }
-
-  const copiarPix = () => {
-    if (payState?.qrcodeContent) {
-      navigator.clipboard.writeText(payState.qrcodeContent)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
     }
   }
 
@@ -219,69 +206,47 @@ export default function PrestadorDashboard() {
         </div>
       </div>
 
-      {/* Modal PicPay */}
+      {/* Modal InfinitePay */}
       {payState && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-5 text-center">
-              <div className="text-4xl mb-1">💚</div>
-              <p className="text-white font-black text-lg">Pagar R$ {PRECO_LEAD.toFixed(2)} via PicPay</p>
-              <p className="text-white/80 text-xs mt-0.5">Escaneie o QR Code ou copie o código</p>
+            <div className="bg-gradient-to-r from-violet-600 to-indigo-600 p-5 text-center">
+              <div className="text-4xl mb-2">💳</div>
+              <p className="text-white font-black text-lg">Pagar R$ {PRECO_LEAD.toFixed(2)}</p>
+              <p className="text-white/80 text-xs mt-0.5">via InfinitePay — PIX ou cartão</p>
             </div>
 
             <div className="p-5 flex flex-col gap-4">
-              {/* QR Code */}
-              {payState.qrcodeBase64 ? (
-                <div className="flex justify-center">
-                  <img
-                    src={`data:image/png;base64,${payState.qrcodeBase64}`}
-                    alt="QR Code PicPay"
-                    className="w-48 h-48 rounded-xl border border-gray-200"
-                  />
-                </div>
-              ) : (
-                <div className="w-48 h-48 bg-gray-100 rounded-xl mx-auto flex items-center justify-center text-5xl">
-                  📲
-                </div>
-              )}
+              <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 text-center">
+                <p className="text-4xl mb-2">📱</p>
+                <p className="font-bold text-indigo-900 text-sm">Clique no botão abaixo para pagar</p>
+                <p className="text-indigo-600 text-xs mt-1">Aceita PIX, cartão de crédito e débito</p>
+              </div>
 
-              {/* Código copia e cola */}
-              {payState.qrcodeContent && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 mb-1">Código copia e cola</p>
-                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 flex items-center gap-2">
-                    <p className="text-xs font-mono text-gray-600 flex-1 truncate">{payState.qrcodeContent.slice(0, 40)}...</p>
-                    <button onClick={copiarPix}
-                      className={`text-xs font-bold px-3 py-1.5 rounded-lg flex-shrink-0 transition-all ${copied ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
-                      {copied ? '✓' : '📋 Copiar'}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Link PicPay */}
-              <a href={payState.paymentUrl} target="_blank" rel="noreferrer"
-                className="block w-full text-center bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl transition-all">
-                Abrir no PicPay →
+              <a
+                href={payState.paymentUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="block w-full text-center bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-black py-4 rounded-xl transition-all text-lg hover:scale-[1.02]"
+              >
+                💳 Pagar agora — R$ {PRECO_LEAD.toFixed(2)}
               </a>
 
-              {/* Status polling */}
-              <div className={`flex items-center gap-2 justify-center text-xs ${polling ? 'text-orange-600' : 'text-gray-400'}`}>
-                {polling ? (
-                  <><span className="animate-spin">⏳</span> Aguardando confirmação do pagamento...</>
-                ) : (
-                  'Verificação concluída'
-                )}
-              </div>
+              {polling && (
+                <div className="flex items-center gap-2 justify-center text-sm text-orange-600 bg-orange-50 rounded-xl py-2.5 px-4">
+                  <span className="animate-spin text-lg">⏳</span>
+                  Aguardando confirmação do pagamento...
+                </div>
+              )}
 
-              <div className="text-xs text-gray-400 text-center leading-relaxed">
-                Após pagar, o WhatsApp do cliente abre automaticamente. <br />
-                Não feche essa janela.
-              </div>
+              <p className="text-xs text-gray-400 text-center leading-relaxed">
+                Após o pagamento, o WhatsApp do cliente aparece automaticamente aqui.
+              </p>
 
-              <button onClick={() => setPayState(null)}
-                className="text-gray-400 text-sm text-center hover:text-gray-700 transition-colors">
+              <button
+                onClick={() => { setPayState(null) }}
+                className="text-gray-400 text-sm text-center hover:text-gray-700 transition-colors py-1"
+              >
                 Cancelar
               </button>
             </div>
