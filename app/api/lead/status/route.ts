@@ -9,16 +9,38 @@ export async function GET(req: NextRequest) {
   const supabase = await createClient()
   const { data: lead } = await supabase
     .from('leads')
-    .select('pago, contato_revelado, pedidos(cliente_telefone, cliente_nome)')
+    .select('pago, contato_revelado')
     .eq('id', leadId)
     .single()
 
   if (!lead) return NextResponse.json({ error: 'Lead não encontrado' }, { status: 404 })
 
+  // Se pago, busca o contato do pedido separadamente
+  let telefone = null
+  let nome = null
+
+  if (lead.pago) {
+    const { data: leadFull } = await supabase
+      .from('leads')
+      .select('pedido_id')
+      .eq('id', leadId)
+      .single()
+
+    if (leadFull?.pedido_id) {
+      const { data: pedido } = await supabase
+        .from('pedidos')
+        .select('cliente_telefone, cliente_nome')
+        .eq('id', leadFull.pedido_id)
+        .single()
+      telefone = pedido?.cliente_telefone ?? null
+      nome = pedido?.cliente_nome ?? null
+    }
+  }
+
   return NextResponse.json({
     pago: lead.pago,
     contato_revelado: lead.contato_revelado,
-    telefone: lead.pago ? lead.pedidos?.cliente_telefone : null,
-    nome: lead.pago ? lead.pedidos?.cliente_nome : null,
+    telefone,
+    nome,
   })
 }
