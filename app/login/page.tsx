@@ -17,25 +17,37 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
-    const supabase = createClient()
-    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password: senha })
+    try {
+      const supabase = createClient()
+      const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password: senha })
 
-    if (authError) {
-      setError('E-mail ou senha incorretos.')
+      if (authError) {
+        setError('E-mail ou senha incorretos.')
+        setLoading(false)
+        return
+      }
+
+      // Busca tipo do perfil para redirecionar corretamente
+      let tipo = 'prestador' // default Frepay
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('tipo')
+          .eq('id', data.user.id)
+          .single()
+        if (profile?.tipo) tipo = profile.tipo
+      } catch {
+        // ignora erro na busca do perfil, usa default
+      }
+
+      // Redireciona
+      const next = new URLSearchParams(window.location.search).get('next')
+      router.push(next ?? `/${tipo}`)
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao entrar')
       setLoading(false)
-      return
     }
-
-    // Fetch profile to redirect to correct dashboard
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('tipo')
-      .eq('id', data.user.id)
-      .single()
-
-    const tipo = profile?.tipo ?? 'influencer'
-    router.push(`/${tipo}`)
-    router.refresh()
   }
 
   return (
