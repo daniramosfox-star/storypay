@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 const nav = [
   { href: '/admin', label: 'Visão geral', icon: '📊' },
@@ -13,6 +14,14 @@ const nav = [
 
 export default function AdminSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+
+  const handleSair = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/')
+    router.refresh()
+  }
 
   return (
     <>
@@ -64,9 +73,10 @@ export default function AdminSidebar() {
               <p className="text-xs text-white/40">Super admin</p>
             </div>
           </div>
-          <Link href="/" className="flex items-center gap-3 px-3 py-2 mt-1 text-sm text-white/30 hover:text-red-400 transition-colors rounded-xl hover:bg-white/5">
+          <button onClick={handleSair}
+            className="flex items-center gap-3 px-3 py-2 mt-1 w-full text-sm text-white/30 hover:text-red-400 transition-colors rounded-xl hover:bg-white/5">
             <span>🚪</span> Sair
-          </Link>
+          </button>
         </div>
       </aside>
 

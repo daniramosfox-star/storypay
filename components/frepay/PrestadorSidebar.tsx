@@ -1,17 +1,39 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 const nav = [
   { href: '/prestador', label: 'Dashboard', icon: '📊' },
-  { href: '/prestador/pedidos', label: 'Pedidos', icon: '🔔', badge: true },
+  { href: '/prestador/pedidos', label: 'Pedidos', icon: '🔔' },
   { href: '/prestador/financeiro', label: 'Financeiro', icon: '💰' },
   { href: '/prestador/perfil', label: 'Meu perfil', icon: '👤' },
 ]
 
 export default function PrestadorSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+
+  const handleSair = async () => {
+    const supabase = createClient()
+    // Fica offline antes de sair
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user?.id) {
+        await fetch('/api/prestador/toggle-online', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: session.user.id, isOnline: false }),
+        })
+      }
+    } catch { /* ignora */ }
+
+    await supabase.auth.signOut()
+    router.push('/')
+    router.refresh()
+  }
+
   return (
     <>
       <aside className="hidden md:flex flex-col w-60 bg-white border-r border-gray-100 min-h-screen fixed left-0 top-0 z-40">
@@ -36,11 +58,15 @@ export default function PrestadorSidebar() {
           })}
         </nav>
         <div className="p-4 border-t border-gray-100">
-          <Link href="/" className="flex items-center gap-3 px-3 py-2 text-sm text-gray-400 hover:text-red-500 transition-colors rounded-xl hover:bg-red-50">
+          <button
+            onClick={handleSair}
+            className="flex items-center gap-3 px-3 py-2 w-full text-sm text-gray-400 hover:text-red-500 transition-colors rounded-xl hover:bg-red-50"
+          >
             <span>🚪</span> Sair
-          </Link>
+          </button>
         </div>
       </aside>
+
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50 flex">
         {nav.map(item => {
           const active = pathname === item.href
@@ -51,6 +77,11 @@ export default function PrestadorSidebar() {
             </Link>
           )
         })}
+        {/* Botão sair no mobile */}
+        <button onClick={handleSair}
+          className="flex-1 flex flex-col items-center py-2 text-xs text-gray-400">
+          <span className="text-xl">🚪</span>
+        </button>
       </nav>
     </>
   )
