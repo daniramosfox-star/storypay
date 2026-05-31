@@ -26,6 +26,9 @@ export default function Home() {
             <span className="font-black text-gray-900 text-xl">Frepay</span>
           </Link>
           <div className="flex items-center gap-3">
+            <Link href="/mapa" className="text-gray-600 text-sm font-medium hover:text-orange-600 flex items-center gap-1">
+              🗺️ <span className="hidden sm:inline">Mapa</span>
+            </Link>
             <Link href="/login" className="text-gray-600 text-sm font-medium hover:text-gray-900">Entrar</Link>
             <Link href="/cadastro?tipo=prestador" className="bg-gradient-to-r from-orange-500 to-red-500 text-white text-sm font-bold px-4 py-2 rounded-full hover:scale-105 transition-all">
               Seja prestador
@@ -230,6 +233,30 @@ export default function Home() {
               <Link href="/cadastro?tipo=prestador" className="inline-block mt-6 w-full text-center bg-green-500 hover:bg-green-600 text-white font-bold px-6 py-3 rounded-full transition-all">
                 Cadastrar como prestador →
               </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Mapa preview */}
+      <section className="py-16 bg-white">
+        <div className="max-w-5xl mx-auto px-4">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-black text-gray-900 mb-2">Veja quem está disponível agora</h2>
+            <p className="text-gray-500">Prestadores online em tempo real no mapa</p>
+          </div>
+          <div className="relative">
+            <div className="bg-gray-100 rounded-2xl overflow-hidden h-64 flex items-center justify-center relative">
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/80 z-10" />
+              <div className="text-center z-20 relative">
+                <div className="text-5xl mb-3">🗺️</div>
+                <p className="font-bold text-gray-800 text-lg">Mapa interativo de prestadores</p>
+                <p className="text-gray-500 text-sm mt-1 mb-4">Veja quem está online perto de você agora</p>
+                <Link href="/mapa"
+                  className="bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold px-6 py-3 rounded-full hover:scale-105 transition-all inline-block">
+                  Abrir mapa →
+                </Link>
+              </div>
             </div>
           </div>
         </div>
