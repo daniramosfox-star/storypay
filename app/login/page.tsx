@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter()
+  const params = useSearchParams()
+  const contaCriada = params.get('msg') === 'conta-criada'
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
   const [loading, setLoading] = useState(false)
@@ -18,34 +20,28 @@ export default function LoginPage() {
     setError('')
 
     try {
-      const supabase = createClient()
-      const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password: senha })
+      // Chama API server-side — sem Supabase no browser (evita BOM em headers)
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, senha }),
+        credentials: 'include', // garante que os cookies de sessão sejam recebidos
+      })
 
-      if (authError) {
-        setError('E-mail ou senha incorretos.')
+      const data = await res.json()
+
+      if (!res.ok || data.error) {
+        setError(data.error ?? 'E-mail ou senha incorretos.')
         setLoading(false)
         return
       }
 
-      // Busca tipo do perfil para redirecionar corretamente
-      let tipo = 'prestador' // default Frepay
-      try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('tipo')
-          .eq('id', data.user.id)
-          .single()
-        if (profile?.tipo) tipo = profile.tipo
-      } catch {
-        // ignora erro na busca do perfil, usa default
-      }
-
-      // Redireciona
+      // Cookies já foram setados pelo servidor — só redireciona
       const next = new URLSearchParams(window.location.search).get('next')
-      router.push(next ?? `/${tipo}`)
+      router.push(next ?? `/${data.tipo ?? 'prestador'}`)
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao entrar')
+      setError(err instanceof Error ? err.message : 'Erro ao entrar. Tente novamente.')
       setLoading(false)
     }
   }
@@ -61,6 +57,15 @@ export default function LoginPage() {
         </Link>
 
         <div className="bg-white rounded-3xl shadow-2xl shadow-violet-900/50 p-8">
+          {contaCriada && (
+            <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-5 flex items-center gap-3">
+              <span className="text-2xl">🎉</span>
+              <div>
+                <p className="font-bold text-green-800 text-sm">Conta criada com sucesso!</p>
+                <p className="text-green-600 text-xs">Agora entre com seus dados para acessar o painel.</p>
+              </div>
+            </div>
+          )}
           <h1 className="text-2xl font-black text-gray-900 mb-1">Entrar</h1>
           <p className="text-gray-400 text-sm mb-6">Acesse sua conta</p>
 
@@ -127,4 +132,8 @@ export default function LoginPage() {
       </div>
     </div>
   )
+}
+
+export default function LoginPage() {
+  return <Suspense><LoginContent /></Suspense>
 }

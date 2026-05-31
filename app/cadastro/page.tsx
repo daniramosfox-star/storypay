@@ -104,21 +104,25 @@ function CadastroContent() {
         return
       }
 
-      if (data.needsLogin) {
-        // Conta criada — redireciona para login
-        router.push('/login?msg=conta-criada')
+      if (data.needsLogin || data.success) {
+        // Conta criada — faz login automático via server-side
+        const loginRes = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: form.email, senha: form.senha }),
+          credentials: 'include',
+        })
+        const loginData = await loginRes.json()
+
+        if (loginRes.ok && loginData.success) {
+          router.push('/prestador')
+          router.refresh()
+        } else {
+          // Login automático falhou — vai para tela de login
+          router.push('/login?msg=conta-criada')
+        }
         return
       }
-
-      // Seta sessão no browser via Supabase
-      const supabase = createClient()
-      await supabase.auth.setSession({
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
-      })
-
-      router.push('/prestador')
-      router.refresh()
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Erro ao criar conta'
       setError(msg)

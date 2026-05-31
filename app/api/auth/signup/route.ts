@@ -59,22 +59,8 @@ export async function POST(req: NextRequest) {
       saldo: 0,
     })
 
-    // 3. Faz login para retornar a sessão
-    const { data: session, error: loginError } = await supabase.auth.signInWithPassword({
-      email,
-      password: senha,
-    })
-
-    if (loginError || !session.session) {
-      // Conta criada mas login falhou — usuário pode logar manualmente
-      return NextResponse.json({ success: true, needsLogin: true })
-    }
-
-    return NextResponse.json({
-      success: true,
-      access_token: session.session.access_token,
-      refresh_token: session.session.refresh_token,
-    })
+    // Conta criada — cliente faz login separadamente via /api/auth/login
+    return NextResponse.json({ success: true, needsLogin: true })
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro interno'
     return NextResponse.json({ error: msg }, { status: 500 })
