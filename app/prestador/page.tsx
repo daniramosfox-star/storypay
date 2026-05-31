@@ -1,106 +1,146 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import { PRECO_LEAD, formatWhatsApp } from '@/lib/frepay/data'
+import { createClient } from '@/lib/supabase/client'
 
-const pedidosProximos = [
-  { id: '1', categoria: '❄️', titulo: 'Ar condicionado', desc: 'AC split 12000 BTUs não está gelando. Já limpei o filtro.', endereco: 'Setor Bueno', distancia: '0.8 km', urgente: true, tempo: '3 min atrás' },
-  { id: '2', categoria: '❄️', titulo: 'Ar condicionado', desc: 'Instalação de ar condicionado novo, apartamento 2 quartos.', endereco: 'Setor Marista', distancia: '1.4 km', urgente: false, tempo: '12 min atrás' },
-  { id: '3', categoria: '❄️', titulo: 'Ar condicionado', desc: 'Ar condicionado pingando água dentro do quarto.', endereco: 'Jardim Goiás', distancia: '2.2 km', urgente: false, tempo: '28 min atrás' },
-]
-
-type PayState = {
-  leadId: string
-  paymentUrl: string
-  pedidoId: string
+type Pedido = {
+  id: string
+  descricao: string
+  endereco: string
+  urgencia: string
+  created_at: string
+  cliente_nome: string
+  cliente_telefone: string
 }
 
-type ContatoRevelado = {
-  pedidoId: string
-  telefone: string
+type Lead = {
+  id: string
+  pedido_id: string
+  gratis: boolean
+  pago: boolean
+  contato_revelado: boolean
+}
+
+type Profile = {
+  id: string
   nome: string
+  especialidade: string | null
+  is_online: boolean
+  rating: number | null
+  saldo: number
+  leads_gratis_data: string | null
 }
 
 export default function PrestadorDashboard() {
-  const [online, setOnline] = useState(false)
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [pedidos, setPedidos] = useState<Pedido[]>([])
+  const [leads, setLeads] = useState<Lead[]>([])
   const [toggling, setToggling] = useState(false)
-  const [leadsGratis, setLeadsGratis] = useState(true)
-  const [revelados, setRevelados] = useState<ContatoRevelado[]>([])
-  const [payState, setPayState] = useState<PayState | null>(null)
   const [loadingId, setLoadingId] = useState<string | null>(null)
-  const [polling, setPolling] = useState(false)
+  const [payModal, setPayModal] = useState<Pedido | null>(null)
+  const [contatosRevelados, setContatosRevelados] = useState<Record<string, string>>({})
+  const [pageLoading, setPageLoading] = useState(true)
 
-  const toggleOnline = () => {
-    setToggling(true)
-    setTimeout(() => { setOnline(o => !o); setToggling(false) }, 500)
-  }
+  const supabase = createClient()
 
-  const jaRevelado = (pedidoId: string) => revelados.find(r => r.pedidoId === pedidoId)
+  const carregarDados = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
-  // Poll status do pagamento a cada 3s
-  const pollStatus = useCallback(async (leadId: string, pedidoId: string) => {
-    setPolling(true)
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/lead/status?leadId=${leadId}`)
-        const data = await res.json()
-        if (data.pago && data.telefone) {
-          clearInterval(interval)
-          setPolling(false)
-          setPayState(null)
-          setLeadsGratis(false)
-          setRevelados(p => [...p, { pedidoId, telefone: data.telefone, nome: data.nome }])
-        }
-      } catch {
-        // continua tentando
-      }
-    }, 3000)
-    // Para de tentar após 10 min
-    setTimeout(() => { clearInterval(interval); setPolling(false) }, 600000)
+    const [{ data: prof }, { data: peds }, { data: lds }] = await Promise.all([
+      supabase.from('profiles').select('*').eq('id', user.id).single(),
+      supabase.from('pedidos').select('*').eq('status', 'aberto').order('created_at', { ascending: false }).limit(10),
+      supabase.from('leads').select('*').eq('prestador_id', user.id),
+    ])
+
+    if (prof) setProfile(prof as Profile)
+    if (peds) setPedidos(peds as Pedido[])
+    if (lds) setLeads(lds as Lead[])
+    setPageLoading(false)
   }, [])
 
-  const handleVerContato = async (pedidoId: string) => {
-    setLoadingId(pedidoId)
+  useEffect(() => { carregarDados() }, [carregarDados])
+
+  const toggleOnline = async () => {
+    if (!profile) return
+    setToggling(true)
+    const novoStatus = !profile.is_online
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      await supabase.from('profiles').update({
+        is_online: novoStatus,
+        last_seen: new Date().toISOString(),
+        ...(novoStatus ? { latitude: null, longitude: null } : {}),
+      }).eq('id', user.id)
+
+      // Tenta pegar geolocalização ao ficar online
+      if (novoStatus && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async pos => {
+          await supabase.from('profiles').update({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+          }).eq('id', user.id)
+        })
+      }
+    }
+    setProfile(p => p ? { ...p, is_online: novoStatus } : p)
+    setToggling(false)
+  }
+
+  const hoje = new Date().toISOString().split('T')[0]
+  const gratisDispo = !profile?.leads_gratis_data || profile.leads_gratis_data < hoje
+
+  const leadDoPedido = (pedidoId: string) => leads.find(l => l.pedido_id === pedidoId)
+
+  const handleVerContato = async (pedido: Pedido) => {
+    const lead = leadDoPedido(pedido.id)
+    if (lead?.contato_revelado) return // já revelado
+
+    setLoadingId(pedido.id)
     try {
       const res = await fetch('/api/lead/pagar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pedidoId }),
+        body: JSON.stringify({ pedidoId: pedido.id }),
+        credentials: 'include',
       })
       const data = await res.json()
 
-      if (!res.ok) {
-        alert(data.error ?? 'Erro ao processar')
-        return
-      }
+      if (!res.ok) { alert(data.error ?? 'Erro'); return }
 
       if (data.gratis) {
-        // Lead grátis — já revelado
-        setLeadsGratis(false)
-        setRevelados(p => [...p, { pedidoId, telefone: data.telefone, nome: data.nome }])
+        setContatosRevelados(p => ({ ...p, [pedido.id]: data.telefone }))
+        await carregarDados()
       } else {
-        // Pago — mostra QR Code PicPay
-        setPayState({
-          leadId: data.leadId,
-          paymentUrl: data.paymentUrl,
-          pedidoId,
-        })
-        pollStatus(data.leadId, pedidoId)
+        setPayModal(pedido)
+        // Abre checkout InfinitePay
+        window.open(data.paymentUrl, '_blank')
       }
-    } catch {
-      alert('Erro de conexão. Tente novamente.')
     } finally {
       setLoadingId(null)
     }
   }
+
+  if (pageLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  const nomeExibido = profile?.nome ?? 'Prestador'
+  const online = profile?.is_online ?? false
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-black text-gray-900">Olá, João! 👋</h1>
-          <p className="text-gray-400 text-sm">Técnico de Ar condicionado • Setor Bueno</p>
+          <h1 className="text-2xl font-black text-gray-900">Olá, {nomeExibido.split(' ')[0]}! 👋</h1>
+          <p className="text-gray-400 text-sm">{profile?.especialidade ?? 'Prestador de serviços'}</p>
         </div>
       </div>
 
@@ -117,7 +157,7 @@ export default function PrestadorDashboard() {
               </p>
             </div>
             <p className={`text-sm ${online ? 'text-white/80' : 'text-gray-400'}`}>
-              {online ? 'Você aparece nas buscas da sua região.' : 'Ative para receber pedidos na sua área.'}
+              {online ? 'Você aparece no mapa e nas buscas da sua região.' : 'Ative para aparecer no mapa e receber pedidos.'}
             </p>
           </div>
           <button onClick={toggleOnline} disabled={toggling}
@@ -129,126 +169,105 @@ export default function PrestadorDashboard() {
         </div>
       </div>
 
-      {/* Stats rápidos */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center">
-          <p className="text-2xl mb-1">🎁</p>
-          <p className="font-black text-gray-900 text-sm">{leadsGratis ? 'Disponível' : 'Usado'}</p>
-          <p className="text-gray-400 text-xs">Lead grátis hoje</p>
+      {/* Stats */}
+      <div className="grid sm:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+          <div className="text-2xl mb-2">🎁</div>
+          <p className="text-xs text-gray-400 mb-1">Lead grátis hoje</p>
+          <p className="font-black text-gray-900 text-sm">{gratisDispo ? '✅ Disponível' : '⏳ Usado'}</p>
         </div>
-        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center">
-          <p className="text-2xl mb-1">💬</p>
-          <p className="font-black text-gray-900 text-sm">{revelados.length}</p>
-          <p className="text-gray-400 text-xs">Contatos acessados</p>
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+          <div className="text-2xl mb-2">💬</div>
+          <p className="text-xs text-gray-400 mb-1">Pedidos na área</p>
+          <p className="font-black text-gray-900 text-sm">{pedidos.length} disponíveis</p>
         </div>
-        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm text-center">
-          <p className="text-2xl mb-1">⭐</p>
-          <p className="font-black text-gray-900 text-sm">4.9</p>
-          <p className="text-gray-400 text-xs">Sua avaliação</p>
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+          <div className="text-2xl mb-2">⭐</div>
+          <p className="text-xs text-gray-400 mb-1">Avaliação</p>
+          <p className="font-black text-gray-900 text-sm">{profile?.rating ? profile.rating.toFixed(1) : '—'}</p>
         </div>
       </div>
 
       {/* Pedidos */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-5 border-b border-gray-100">
-          <h2 className="font-bold text-gray-900">Pedidos na sua área</h2>
-          <p className="text-gray-400 text-xs mt-0.5">{pedidosProximos.length} disponíveis agora</p>
+        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h2 className="font-bold text-gray-900">Pedidos na sua área</h2>
+            <p className="text-gray-400 text-xs mt-0.5">{pedidos.length} pedidos abertos</p>
+          </div>
+          {!online && (
+            <span className="text-xs bg-yellow-100 text-yellow-700 font-semibold px-3 py-1 rounded-full">
+              Fique online para receber
+            </span>
+          )}
         </div>
 
-        <div className="divide-y divide-gray-50">
-          {pedidosProximos.map(p => {
-            const contato = jaRevelado(p.id)
-            const carregando = loadingId === p.id
-            const eGratis = leadsGratis
+        {pedidos.length === 0 ? (
+          <div className="p-8 text-center text-gray-400">
+            <p className="text-4xl mb-3">📋</p>
+            <p className="font-semibold">Nenhum pedido aberto na sua área</p>
+            <p className="text-sm mt-1">Fique online para ser notificado quando chegar</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {pedidos.map(p => {
+              const lead = leadDoPedido(p.id)
+              const revelado = lead?.contato_revelado || !!contatosRevelados[p.id]
+              const telefone = contatosRevelados[p.id] || (revelado ? p.cliente_telefone : null)
+              const carregando = loadingId === p.id
+              const eGratis = gratisDispo && !lead
 
-            return (
-              <div key={p.id} className="p-4">
-                <div className="flex items-start gap-3 mb-3">
-                  <span className="text-2xl flex-shrink-0">{p.categoria}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                      <p className="font-bold text-gray-900 text-sm">{p.titulo}</p>
-                      {p.urgente && <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full">🚨 Urgente</span>}
-                      <span className="text-gray-400 text-xs ml-auto">{p.tempo}</span>
-                    </div>
-                    <p className="text-gray-600 text-sm mb-1">{p.desc}</p>
-                    <div className="flex items-center gap-3 text-xs text-gray-400">
-                      <span>📍 {p.endereco}</span>
-                      <span>🗺 {p.distancia}</span>
+              return (
+                <div key={p.id} className="p-4">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                        <p className="font-bold text-gray-900 text-sm">Pedido de serviço</p>
+                        {p.urgencia === 'urgente' && (
+                          <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full">🚨 Urgente</span>
+                        )}
+                        <span className="text-gray-400 text-xs ml-auto">
+                          {new Date(p.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <p className="text-gray-600 text-sm mb-1">{p.descricao}</p>
+                      <p className="text-gray-400 text-xs">📍 {p.endereco}</p>
                     </div>
                   </div>
-                </div>
 
-                {contato ? (
-                  /* Contato revelado — botão WhatsApp */
-                  <a href={formatWhatsApp(contato.telefone)} target="_blank" rel="noreferrer"
-                    className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold text-sm px-4 py-2.5 rounded-xl transition-all w-fit">
-                    <span className="text-lg">💬</span>
-                    Chamar {contato.nome} no WhatsApp
-                  </a>
-                ) : (
-                  <button
-                    onClick={() => handleVerContato(p.id)}
-                    disabled={carregando || !!payState}
-                    className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold text-sm px-4 py-2.5 rounded-xl hover:scale-105 transition-all disabled:opacity-50"
-                  >
-                    {carregando
-                      ? <><span className="animate-spin">⏳</span> Processando...</>
-                      : eGratis
-                        ? <><span>🎁</span> Ver contato — GRÁTIS</>
-                        : <><span>💬</span> Ver contato — R$ {PRECO_LEAD.toFixed(2)} via PicPay</>
-                    }
-                  </button>
-                )}
-              </div>
-            )
-          })}
-        </div>
+                  {revelado && telefone ? (
+                    <a href={formatWhatsApp(telefone)} target="_blank" rel="noreferrer"
+                      className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold text-sm px-4 py-2.5 rounded-xl transition-all w-fit">
+                      <span>💬</span> Chamar {p.cliente_nome} no WhatsApp
+                    </a>
+                  ) : (
+                    <button onClick={() => handleVerContato(p)} disabled={carregando || !!payModal}
+                      className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold text-sm px-4 py-2.5 rounded-xl hover:scale-105 transition-all disabled:opacity-50">
+                      {carregando ? '⏳ Processando...' : eGratis ? '🎁 Ver contato — GRÁTIS' : `💬 Ver contato — R$ ${PRECO_LEAD.toFixed(2)}`}
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
-      {/* Modal InfinitePay */}
-      {payState && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden">
-            <div className="bg-gradient-to-r from-violet-600 to-indigo-600 p-5 text-center">
+      {/* Modal aguardando pagamento */}
+      {payModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl p-6">
+            <div className="text-center mb-4">
               <div className="text-4xl mb-2">💳</div>
-              <p className="text-white font-black text-lg">Pagar R$ {PRECO_LEAD.toFixed(2)}</p>
-              <p className="text-white/80 text-xs mt-0.5">via InfinitePay — PIX ou cartão</p>
+              <p className="font-black text-gray-900">Pagamento em andamento</p>
+              <p className="text-gray-500 text-sm mt-1">Complete o pagamento de R$ {PRECO_LEAD.toFixed(2)} na aba que abriu</p>
             </div>
-
-            <div className="p-5 flex flex-col gap-4">
-              <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 text-center">
-                <p className="text-4xl mb-2">📱</p>
-                <p className="font-bold text-indigo-900 text-sm">Clique no botão abaixo para pagar</p>
-                <p className="text-indigo-600 text-xs mt-1">Aceita PIX, cartão de crédito e débito</p>
-              </div>
-
-              <a
-                href={payState.paymentUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="block w-full text-center bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-black py-4 rounded-xl transition-all text-lg hover:scale-[1.02]"
-              >
-                💳 Pagar agora — R$ {PRECO_LEAD.toFixed(2)}
-              </a>
-
-              {polling && (
-                <div className="flex items-center gap-2 justify-center text-sm text-orange-600 bg-orange-50 rounded-xl py-2.5 px-4">
-                  <span className="animate-spin text-lg">⏳</span>
-                  Aguardando confirmação do pagamento...
-                </div>
-              )}
-
-              <p className="text-xs text-gray-400 text-center leading-relaxed">
-                Após o pagamento, o WhatsApp do cliente aparece automaticamente aqui.
-              </p>
-
-              <button
-                onClick={() => { setPayState(null) }}
-                className="text-gray-400 text-sm text-center hover:text-gray-700 transition-colors py-1"
-              >
-                Cancelar
-              </button>
+            <div className="flex items-center gap-2 bg-orange-50 rounded-xl p-3 mb-4 text-xs text-orange-700">
+              <span className="animate-spin">⏳</span> Aguardando confirmação do pagamento...
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setPayModal(null)} className="flex-1 border border-gray-200 text-gray-600 font-semibold py-3 rounded-xl text-sm">Cancelar</button>
+              <button onClick={() => { setPayModal(null); carregarDados() }} className="flex-1 bg-green-500 text-white font-bold py-3 rounded-xl text-sm">Já paguei ✓</button>
             </div>
           </div>
         </div>

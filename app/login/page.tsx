@@ -113,7 +113,7 @@ function LoginContent() {
           </form>
 
           <div className="mt-4 text-center">
-            <Link href="#" className="text-sm text-violet-600 hover:underline">
+            <Link href="/recuperar-senha" className="text-sm text-orange-600 hover:underline">
               Esqueci minha senha
             </Link>
           </div>
