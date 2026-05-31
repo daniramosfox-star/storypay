@@ -81,34 +81,41 @@ function CadastroContent() {
     setError('')
 
     try {
-      const supabase = createClient()
-
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: form.email,
-        password: form.senha,
-        options: { data: { nome: form.nome, tipo: 'prestador' } },
+      // Chama API server-side — evita problema de headers ISO-8859-1 no browser
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: form.email,
+          senha: form.senha,
+          nome: form.nome,
+          telefone: form.telefone,
+          categoria: form.categoria,
+          cidade: form.cidade,
+          bio: form.bio,
+        }),
       })
 
-      if (signUpError) {
-        setError(signUpError.message)
+      const data = await res.json()
+
+      if (!res.ok || data.error) {
+        setError(data.error ?? 'Erro ao criar conta')
         setLoading(false)
         return
       }
 
-      if (data.user) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await supabase.from('profiles').upsert({
-          id: data.user.id,
-          tipo: 'prestador',
-          nome: form.nome,
-          telefone: form.telefone || null,
-          categoria_id: form.categoria || null,
-          cidade_id: form.cidade || null,
-          bio: form.bio || null,
-          is_online: false,
-          saldo: 0,
-        } as any)
+      if (data.needsLogin) {
+        // Conta criada — redireciona para login
+        router.push('/login?msg=conta-criada')
+        return
       }
+
+      // Seta sessão no browser via Supabase
+      const supabase = createClient()
+      await supabase.auth.setSession({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+      })
 
       router.push('/prestador')
       router.refresh()
