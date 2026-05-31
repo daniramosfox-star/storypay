@@ -20,37 +20,44 @@ function LoginContent() {
     setError('')
 
     try {
-      // Chama API server-side com timeout de 15s
-      const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 15000)
+      const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!.replace(/﻿/g, '').trim()
+      const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!.replace(/﻿/g, '').trim()
 
-      const res = await fetch('/api/auth/login', {
+      // Login direto via REST — mesmo método que funcionou no teste
+      const r = await fetch(`${SUPA_URL}/auth/v1/token?grant_type=password`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, senha }),
-        credentials: 'include',
-        signal: controller.signal,
-      }).finally(() => clearTimeout(timer))
+        headers: { 'Content-Type': 'application/json', 'apikey': ANON_KEY },
+        body: JSON.stringify({ email, password: senha }),
+      })
 
-      const data = await res.json()
+      const session = await r.json()
 
-      if (!res.ok || data.error) {
-        setError(data.error ?? 'E-mail ou senha incorretos.')
+      if (!r.ok || !session.access_token) {
+        setError('E-mail ou senha incorretos.')
         setLoading(false)
         return
       }
 
-      // Inicializa sessão no localStorage do browser (para createBrowserClient funcionar)
-      if (data.access_token && data.refresh_token) {
-        const supabase = createClient()
-        await supabase.auth.setSession({
-          access_token: data.access_token,
-          refresh_token: data.refresh_token,
-        })
-      }
+      // Popula localStorage para o browser client funcionar
+      const supabase = createClient()
+      await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      })
+
+      // Descobre o tipo do perfil
+      let tipo = 'prestador'
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('tipo')
+          .eq('id', session.user.id)
+          .single()
+        if (profile?.tipo) tipo = profile.tipo
+      } catch { /* usa default */ }
 
       const next = new URLSearchParams(window.location.search).get('next')
-      router.push(next ?? `/${data.tipo ?? 'prestador'}`)
+      router.push(next ?? `/${tipo}`)
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao entrar. Tente novamente.')
